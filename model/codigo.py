@@ -1,13 +1,25 @@
 from vingador import Vingador
+from database import Database
+import os
 
 class Interface:
+
     @staticmethod
-    def limpar_tela():
-        # Implementação da função para limpar a tela
-        pass
+    def ciencia():
+        os.system('cls')
+        print("""
+██╗░░░██╗██╗███╗░░██╗░██████╗░ █████╗░██████╗░░█████╗░██╗░██████╗
+██║░░░██║██║████╗░██║██╔════╝░██╔══██╗██╔══██╗██╔══██╗██║██╔════╝
+╚██╗░██╔╝██║██╔██╗██║██║░░██╗░███████║██║░░██║██║░░██║██║╚█████╗░
+░╚████╔╝░██║██║╚████║██║░░╚██╗██╔══██║██║░░██║██║░░██║██║░╚═══██╗
+░░╚██╔╝░░██║██║░╚███║╚██████╔╝██║░░██║██████╔╝╚█████╔╝██║██████╔╝
+░░░╚═╝░░░╚═╝╚═╝░░╚══╝░╚═════╝░╚═╝░░╚═╝╚═════╝░░╚════╝░╚═╝╚═════╝░
+
+        """)
 
     @staticmethod
     def menu():
+        Interface.ciencia()
         print("1. Cadastrar Vingador")
         print("2. Listar Vingadores")
         print("3. Detalhar Vingador")
@@ -19,6 +31,7 @@ class Interface:
 
     @staticmethod
     def cadastrar_vingador():
+        Interface.ciencia()
         nome_heroi = input("Nome do Herói: ")
         nome_real = input("Nome Real: ")
         categoria = input("Categoria: ")
@@ -39,21 +52,47 @@ class Interface:
 
     @staticmethod
     def listar_vingadores():
+        Interface.ciencia()
         Vingador.listar_herois()
 
     @staticmethod
     def detalhar_vingador():
+        Interface.ciencia()
         Vingador.detalhar_vingador()
 
     @staticmethod
     def acao_em_vingador(acao):
+        Interface.ciencia()
         nome_heroi = input("Nome do Herói: ")
-        vingador = next((v for v in Vingador.lista_vingadores if v.nome_heroi == nome_heroi), None)
-        if vingador:
-            print(acao(vingador))
-        else:
-            print(f"Vingador '{nome_heroi}' não encontrado.")
+        db = None
+        try:
+            db = Database()
+            db.connect()
+            query = "SELECT nome_heroi FROM heroi WHERE nome_heroi = %s"
+            db.cursor.execute(query, (nome_heroi,))
+            resultado = db.cursor.fetchone()
+            if resultado:
+                vingador = Vingador(nome_heroi, "", "", [], "", [], 0)  # Cria um objeto Vingador temporário
+                print(acao(vingador))
+            else:
+                print(f"Vingador '{nome_heroi}' não encontrado no banco de dados.")
+        except Exception as e:
+            print(f"Erro ao verificar vingador no banco de dados: {e}")
+        finally:
+            if db:
+                db.disconnect()
 
     @staticmethod
     def convocar_vingador():
+        Interface.ciencia()
         Vingador.convocar()
+
+    @staticmethod
+    def aplicar_tornozeleira():
+        Interface.ciencia()
+        Vingador.aplicar_tornozeleira()
+
+    @staticmethod
+    def aplicar_chip_gps():
+        Interface.ciencia()
+        Vingador.aplicar_chip_gps()

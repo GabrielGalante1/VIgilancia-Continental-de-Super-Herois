@@ -20,13 +20,13 @@ class Database:
                 database = self.database
             )
             self.cursor = self.connection.cursor()
-            print('Conexão com o banco de dados realizada com sucesso')
+            #print('Conexão com o banco de dados realizada com sucesso')
         except Error as e:
             print(f'Erro: {e}')
 
     def disconnect(self):
         self.connection.close()
-        print('Conexão com o banco de dados encerrada com sucesso')
+        #print('Conexão com o banco de dados encerrada com sucesso')
 
     def execute_query(self, query, values=None):
         try:

@@ -40,37 +40,112 @@ class Vingador:
                 f'Chip GPS: {"Aplicado" if self.chip_gps else "Não Aplicado"}\n'
                 f'Convocado: {"Sim" if self.convocado else "Não"}')
 
-    def aplicar_tornozeleira(self):
-        if self.tornozeleira == True:
-            return f'{self.nome_heroi} já está com a tornozeleira aplicada.'
-        elif self.convocado == False:
-            return f'{self.nome_heroi} precisa ser convocado antes de aplicar a tornozeleira.'
-        else:
-            self.tornozeleira = True
-            # Vinculando ao banco de dados
-            try:
-                db = Database()
-                db.connect()
-                update_query = "UPDATE tornozeleira SET status = %s, data_ativacao = CURDATE() WHERE heroi_id = (SELECT heroi_id FROM heroi WHERE nome_heroi = %s)"
-                db.cursor.execute(update_query, ('Ativa', self.nome_heroi))
-                db.connection.commit()
-            except Exception as e:
-                return f"Erro ao aplicar a tornozeleira no banco de dados: {e}"
-            finally:
+    @staticmethod
+    def aplicar_tornozeleira():
+        nome_heroi = input("Nome do Herói: ")
+        db = None
+        try:
+            db = Database()
+            db.connect()
+            
+            # Verificar se o herói existe e seu status de convocação
+            query = "SELECT heroi_id, convocado FROM heroi WHERE nome_heroi = %s"
+            db.cursor.execute(query, (nome_heroi,))
+            resultado = db.cursor.fetchone()
+            
+            if resultado is None:
+                print(f"Herói {nome_heroi} não encontrado no banco de dados.")
+                return
+            
+            heroi_id, convocado = resultado
+            
+            if not convocado:
+                print(f'{nome_heroi} precisa ser convocado antes de aplicar a tornozeleira.')
+                return
+            
+            # Verificar se já tem tornozeleira
+            query = "SELECT status FROM tornozeleira WHERE heroi_id = %s"
+            db.cursor.execute(query, (heroi_id,))
+            tornozeleira = db.cursor.fetchone()
+            
+            if tornozeleira and tornozeleira[0] == 'Ativa':
+                print(f'{nome_heroi} já está com a tornozeleira aplicada.')
+                return
+                
+            # Criar ou atualizar tornozeleira
+            if not tornozeleira:
+                insert_query = """
+                    INSERT INTO tornozeleira (heroi_id, status, data_ativacao) 
+                    VALUES (%s, %s, CURDATE())
+                """
+                db.cursor.execute(insert_query, (heroi_id, 'Ativa'))
+            else:
+                update_query = """
+                    UPDATE tornozeleira 
+                    SET status = %s, data_ativacao = CURDATE() 
+                    WHERE heroi_id = %s
+                """
+                db.cursor.execute(update_query, ('Ativa', heroi_id))
+            
+            db.connection.commit()
+            
+            if nome_heroi in ["Thor", "Hulk"]:
+                print(f'{nome_heroi} resistiu, mas a tornozeleira foi aplicada com sucesso.')
+            else:
+                print(f'Tornozeleira aplicada a {nome_heroi}.')
+                
+        except Exception as e:
+            print(f"Erro ao aplicar tornozeleira: {e}")
+        finally:
+            if db:
                 db.disconnect()
 
-            if self.nome_heroi in ["Thor", "Hulk"]:
-                return f'{self.nome_heroi} resistiu, mas a tornozeleira foi aplicada com sucesso.'
-            return f'Tornozeleira aplicada a {self.nome_heroi}.'
-
     def aplicar_chip_gps(self):
-        if not self.tornozeleira:
-            return f'{self.nome_heroi} precisa estar com a tornozeleira antes de aplicar o chip GPS.'
-        if self.chip_gps:
-            return f'Chip GPS já foi aplicado em {self.nome_heroi}.'
-        self.chip_gps = True
-        return f'Chip GPS aplicado a {self.nome_heroi}.'
-    
+        db = None
+        try:
+            db = Database()
+            db.connect()
+            
+            # Verificar se o herói existe no banco de dados
+            query = "SELECT heroi_id FROM heroi WHERE nome_heroi = %s"
+            db.cursor.execute(query, (self.nome_heroi,))
+            resultado = db.cursor.fetchone()
+            
+            if resultado is None:
+                return f"Herói {self.nome_heroi} não encontrado no banco de dados."
+            
+            heroi_id = resultado[0]
+            
+            # Verificar se o herói tem uma tornozeleira ativa
+            query = "SELECT tornozeleira_id FROM tornozeleira WHERE heroi_id = %s AND status = 'Ativa'"
+            db.cursor.execute(query, (heroi_id,))
+            resultado = db.cursor.fetchone()
+            
+            if resultado is None:
+                return f'{self.nome_heroi} precisa estar com a tornozeleira ativa antes de aplicar o chip GPS.'
+            
+            tornozeleira_id = resultado[0]
+            
+            if self.chip_gps:
+                return f'Chip GPS já foi aplicado em {self.nome_heroi}.'
+            
+            # Inserir o chip GPS na tabela chip_gps
+            insert_query = """
+                INSERT INTO chip_gps (tornozeleira_id, localizacao_atual, ultima_localizacao) 
+                VALUES (%s, %s, %s)
+            """
+            db.cursor.execute(insert_query, (tornozeleira_id, 'Localização Inicial', 'Localização Inicial'))
+            db.connection.commit()
+            
+            self.chip_gps = True
+            return f'Chip GPS aplicado a {self.nome_heroi}.'
+            
+        except Exception as e:
+            return f"Erro ao aplicar chip GPS: {e}"
+        finally:
+            if db:
+                db.disconnect()
+
     def prender(self):
         return f'{self.nome_heroi} teve o mandado de prisão emitido!'
     
@@ -132,12 +207,32 @@ class Vingador:
         try:
             db = Database()
             db.connect()
-            query = "UPDATE heroi SET convocado = %s WHERE nome_heroi = %s"
-            db.cursor.execute(query, (True, nome_heroi))
+            
+            # Verificar se o herói existe no banco de dados
+            query = "SELECT convocado FROM heroi WHERE nome_heroi = %s"
+            db.cursor.execute(query, (nome_heroi,))
+            resultado = db.cursor.fetchone()
+            
+            if resultado is None:
+                print(f"Herói {nome_heroi} não encontrado no banco de dados.")
+                return
+            
+            convocado = resultado[0]
+            
+            if convocado:
+                print(f"Herói {nome_heroi} já foi convocado.")
+                return
+            
+            # Atualizar o status de convocação do herói no banco de dados
+            update_query = "UPDATE heroi SET convocado = %s WHERE nome_heroi = %s"
+            db.cursor.execute(update_query, (True, nome_heroi))
             db.connection.commit()
+            
+            # Atualizando o atributo 'convocado' do vingador na lista
             vingador = next((v for v in Vingador.lista_vingadores if v.nome_heroi == nome_heroi), None)
             if vingador:
-                vingador.convocado = True 
+                vingador.convocado = True
+            
             print(f"Vingador {nome_heroi} convocado com sucesso.")
         except Exception as e:
             print(f"Erro ao convocar vingador: {e}")

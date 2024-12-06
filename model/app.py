@@ -23,6 +23,7 @@ def main():
         elif opcao == "6":
             Interface.acao_em_vingador(lambda v: v.aplicar_chip_gps())
         elif opcao == "0":
+            Interface.ciencia()
             print("Encerrando o sistema...")
             break
         input("\nPressione Enter para continuar...")
